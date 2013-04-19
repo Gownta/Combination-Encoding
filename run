@@ -1,0 +1,73 @@
+#!/bin/bash
+
+################################################################################
+### Error handling
+
+# trap and abort on Ctrl-c
+control_c()
+{
+  echo "Build aborted"
+  exit 1
+}
+trap control_c SIGINT
+
+# exit if command fails
+try()
+{
+  # run the command
+  $@
+
+  # save the exit code
+  __exit_code__=$?
+
+  # check the exit code
+  if [ $__exit_code__ -ne 0 ] ; then
+    exit $__exit_code__
+  fi
+}
+
+################################################################################
+### Actual Script
+
+clear
+
+# go to the root
+cd ~/dev/Combination-Encoding
+
+# if the first argument is wipe, then wipe instead of building
+if [ "$1" = "wipe" ] ; then
+  echo "Deleting build/ directory"
+  rm -rf build
+  exit 0
+fi
+
+# ensure build/ contains the most up-to-date code
+echo "========================================"
+echo "Updating build/ directory"
+echo
+
+mkdir -p build
+cp -ruf src/*  build
+cp -ruf test/* build
+
+echo
+
+# make
+echo "========================================"
+echo "Building executable"
+echo
+
+cd build
+try make
+
+echo
+
+# run the executable
+echo "========================================"
+echo "Running executable"
+echo
+
+try ./combencode $@
+
+echo
+
