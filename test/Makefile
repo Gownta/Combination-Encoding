@@ -1,7 +1,7 @@
 CXX = g++
 CXXWARNINGS = -Wall -Wextra -Werror -Wno-unused-parameter
 CXXSTYLE = -MMD -O3
-CXXFLAGS = $(CXXWARNINGS) $(CXXSTYLE)
+CXXFLAGS = -std=c++11 $(CXXWARNINGS) $(CXXSTYLE) -DGOWNTA_TEST=1
 
 SOURCES = $(shell find . -type f -name '*.cpp')
 OBJECTS = $(SOURCES:.cpp=.o)
