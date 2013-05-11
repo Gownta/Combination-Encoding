@@ -89,18 +89,15 @@ static bool testall(int n, int k, int method) {
 
 bool test() {
   bool ret = true;
-  ret = ret && testall(1,1,1);
   for (int m = 1; m <= 3; ++m) {
+    ret = ret && testall(1,1,m);
     ret = ret && testall(4,1,m);
     ret = ret && testall(4,2,m);
     ret = ret && testall(4,3,m);
     ret = ret && testall(4,4,m);
+    ret = ret && testall(7,3,m);
   }
-  ret = ret && testall(7,3,1);
-
-  if (ret) cout << "PASSED";
-  else     cout << "FAILED";
   cout << "\n" << endl;
-
   return ret;
 }
+

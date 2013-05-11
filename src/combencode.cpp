@@ -70,29 +70,44 @@ static void decode_top_down(int n, int k, int e, int * data) {
 }
 
 static void decode_binary(int n, int k, int e, int * data) {
-  // binary search
+  // uneven binary search
+  // INVARIANT: the next element in the sequence is greater than lb
+  // INVARIANT: c = C(upper_bound, k-i)
+
+  int lb = 0;
+  int inc = n/k;
   
   for (int i = 0; i < k-1; ++i) {
-    int c = 0;
-    int low_false = i;
-    int high_true = n-k+i+1;
+    int c;
 
+    // test increments of the lower bound by n/k
+    while (lb+inc <= n-i+1 && (c = C(n-(lb+inc), k-i)) > e) lb += inc;
+
+    // set up a feasible upper bound and an infeasible lower bound
+    int low_fail  = lb;
+    int high_pass = lb+inc;
+    if (high_pass > n-i+1) {
+      high_pass = n-i+1;
+      c = 0;
+    }
+
+    // perform binary search for i in the range (lb, lb+inc]
     int mid;
-    while ((mid = (low_false + high_true) / 2) != low_false) {
+    while ((mid = (low_fail + high_pass) / 2) != low_fail) {
       int mc = C(n-mid, k-i);
-      bool possible = mc <= e;
-      if (possible) {
-        high_true = mid;
+      if (mc <= e) {
+        high_pass = mid;
         c = mc;
       } else {
-        low_false = mid;
+        low_fail = mid;
       }
     }
 
     e -= c;
-    data[i] = high_true;
+    data[i] = high_pass;
   }
 
+  // final element optimization
   data[k-1] = n - e;
 }
 
