@@ -10,9 +10,10 @@
  * @param n Upper bound on the values in the sequence.
  * @param k Number of values in the sequence.
  * @param data Sequence of integers to encode.
+ * @param method How to perform the encoding - used only for testing.
  * @return A unique encoding of the sequence.
  */
-int encode(int n, int k, const int * data);
+int encode(int n, int k, const int * data, int method);
 
 /**
  * Decode an encoding.
@@ -26,7 +27,7 @@ int encode(int n, int k, const int * data);
  * @param method How to perform the decode search - used only for testing.
  * @param data Location to store the values of the sequence.
  */
-void decode(int n, int k, int e, int * data, int method = 1);
+void decode(int n, int k, int e, int * data, int method);
 
 #endif // GOWNTA_COMBENCODE_H
 

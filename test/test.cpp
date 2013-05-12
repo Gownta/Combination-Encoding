@@ -47,7 +47,7 @@ static bool test(int n, int k, int e, const int * data, int method) {
   print(k, data);
 
   cout << ": encoding... " << flush;
-  bool passed = encode(n,k,data) == e;
+  bool passed = encode(n,k,data, method) == e;
   if (passed) cout << "passed";
   else        cout << "failed";
 
@@ -89,7 +89,7 @@ static bool testall(int n, int k, int method) {
 
 bool test() {
   bool ret = true;
-  for (int m = 1; m <= 3; ++m) {
+  for (int m = 1; m <= 2; ++m) {
     ret = ret && testall(1,1,m);
     ret = ret && testall(4,1,m);
     ret = ret && testall(4,2,m);
