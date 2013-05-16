@@ -96,6 +96,7 @@ bool test() {
     ret = ret && testall(4,3,m);
     ret = ret && testall(4,4,m);
     ret = ret && testall(7,3,m);
+    ret = ret && testall(10,5,m);
   }
   cout << "\n" << endl;
   return ret;

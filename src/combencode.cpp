@@ -79,13 +79,13 @@ static void decode_binary(int n, int k, int e, int * data) {
     int c;
 
     // test increments of the lower bound by n/k
-    while (lb+inc <= n-i+1 && (c = C(n-(lb+inc), k-i)) > e) lb += inc;
+    while (lb+inc <= n-k+i+1 && (c = C(n-(lb+inc), k-i)) > e) lb += inc;
 
     // set up a feasible upper bound and an infeasible lower bound
     int low_fail  = lb;
     int high_pass = lb+inc;
-    if (high_pass > n-i+1) {
-      high_pass = n-i+1;
+    if (high_pass > n-k+i+1) {
+      high_pass = n-k+i+1;
       c = 0;
     }
 
