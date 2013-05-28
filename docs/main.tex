@@ -1,0 +1,675 @@
+\documentclass[preprint]{sigplanconf}
+
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amsthm}
+\usepackage{multirow}
+\usepackage{listings}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{float}
+
+%\newtheorem{theorem}{Theorem}[section]
+%\newtheorem{lemma}[theorem]{Lemma}
+%\newtheorem{proposition}[theorem]{Proposition}
+%\newtheorem{corollary}[theorem]{Corollary}
+%\renewenvironment{proof}[1][Proof]{\begin{trivlist}
+%\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+%\newenvironment{definition}[1][Definition]{\begin{trivlist}
+%\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+%\newenvironment{assumption}[1][Assumption]{\begin{trivlist}
+%\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+%\newenvironment{example}[1][Example]{\begin{trivlist}
+%\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+%\newenvironment{remark}[1][Remark]{\begin{trivlist}
+%\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+%\renewcommand{\qed}{\nobreak \ifvmode \relax \else
+%      \ifdim\lastskip<1.5em \hskip-\lastskip
+%      \hskip1.5em plus0em minus0.5em \fi \nobreak
+%      \vrule height0.75em width0.5em depth0.25em\fi}
+
+\lstset{numbers=left,numberstyle=\tiny,numbersep=3pt,tabsize=2,basicstyle=\ttfamily,showstringspaces=false,language=Python}
+
+
+\begin{document}
+
+	\title{Combination Encoding}
+	\authorinfo{Nicholas Ormrod}
+	           {University of Waterloo}
+	           {njormrod@uwaterloo.ca}
+	\maketitle
+	
+	%\input{...}
+
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	
+	\section{Problem}
+	
+	For a given $n$ and $k$, there are $\binom{n}{k}$ ways to choose $k$ of $n$ elements.
+	To space-efficiently represent an arbitrary choice of elements, it is desirable to encode choices as numbers between $0$ and $\binom{n}{k}-1$.
+	The encoding should be efficiently computable and decodable.
+	
+	... (motivation, abstract)
+	
+	The reverse lexicographical encoding has several nice properties and allows for efficient computation.
+
+	%This analysis is not concerned with the actual values being chosen.
+	%They will be represented hereon as $\{ a_1, a_2, \ldots, a_n \}$.
+		
+	\begin{figure}[!ht]
+		\begin{center}	
+		\begin{tabular}{c|ccc}
+			& Encoding & & Choice \\
+			\cline{2-4}
+			\multirow{3}{*}{$\binom{4}{2}$}
+			& 5 & $\equiv$ & $\{a_1, a_2\}$ \\
+			& 4 & $\equiv$ & $\{a_1, a_3\}$ \\
+			& 3 & $\equiv$ & $\{a_1, a_4\}$ \\
+			$a_1, a_2,$ 
+			& 2 & $\equiv$ & $\{a_2, a_3\}$ \\
+			$a_3, a_4$
+			& 1 & $\equiv$ & $\{a_2, a_4\}$ \\
+			& 0 & $\equiv$ & $\{a_3, a_4\}$ \\
+		\end{tabular}
+		\caption{Reverse lexicographical encoding for two elements chosen from $a_1,a_2,a_3,a_4$}
+		\label{Ex}
+		\end{center}
+	\end{figure}
+	
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\subsection{Pascal's Diagonal}
+	
+	In the reverse lexicographical encoding, how many of the $\binom{n}{k}$ choices start with the first element, $a_1$?
+	Quite simply, if $a_1$ is selected, then the other $k-1$ selections must be made from the remaining $n-1$ elements.
+	This can be done in $\binom{n-1}{k-1}$ ways.
+	
+	More generally, how many of the $\binom{n}{k}$ choices start with the $i$'th element?
+	The lowest selected element is $a_i$, so the other $k-1$ selections must be made from among the $n-i$ greater elements.
+	This can be done in $\binom{n-i}{k-1}$ ways.
+	
+	Since the first selected element is between $a_1$ and $a_{n-k+1}$, the following equation must be true:
+	
+	\begin{eqnarray}
+		\binom{n}{k} & = & \sum_{i=1}^{n-k+1}{\binom{n-i}{k-1}}
+		\label{CE}
+	\end{eqnarray}
+	
+	Visually, on Pascal's triangle, the underlined cell is the sum of the bolded cells:	
+	
+	\begin{tabular}{ccccccccccc}
+	  & & & & & 1 & & & & & \\
+	  & & & & 1 & & 1 & & & & \\
+	  & & & 1 & & 2 & & \textbf{1} & & & \\
+	  & & 1 & & 3 & & \textbf{3} & & 1 & & \\
+		& 1 & & 4 & & \textbf{6} & & 4 & & 1 & \\
+	  1 & & 5 & & 10 & & \textbf{\underline{10}} & & 5 & & 1
+	\end{tabular}
+	\vspace{3mm}	
+	
+	Mathematically, this property follows by Pascal's rule and induction.
+	
+	Corollary: In Pascal's triangle, the cummulative sum of the $i$'th diagonal is represented by the $(i+1)$'th diagonal.
+	
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\section{Encoding}
+	
+	Since the encoding is lexicographic, the encodings are grouped foremost by their first selection.
+	Hence a choice whose first selection is $a_i$ has a larger encoding than all choices whose first selection is $a_{j>i}$.
+	
+	We may use equation \ref{CE} to determine the number of choices whose first element is greater than $a_i$:
+	
+	\begin{eqnarray*}
+		&   & \text{\{\# of choices whose first selection is greater than $a_i$\}} \\ 
+		& = & \sum_{j=i+1}^{n-k+1}{\text{\{\# of choices whose first selection is $a_j$\}}} \\
+		& = & \sum_{j=i+1}^{n-k+1}{\binom{n-j}{k-1}} \\
+		& = & \sum_{j=1}^{n-k+1-i}{\binom{n-(j+i)}{k-1}} \\
+		& = & \binom{n-i}{k}
+	\end{eqnarray*}
+	
+	Therefore the set of all choices that start with $a_i$ have encodings starting at $\binom{n-i}{k}$.
+		
+	Within the group of choices that start with $a_i$, the relative ordering of two different choices can be determined by the lexicographic ordering of their tails.
+	That is to say, the choice $\{ a_i, a_{v_2}, \ldots, a_{v_{k}} \}$ preceeds $\{ a_i, a_{w_2}, \ldots, a_{w_{k}} \}$ if and only if
+	$\{ a_{v_2}, \ldots, a_{v_{k}} \}$ preceeds $\{ a_{w_2}, \ldots, a_{w_{k}} \}$.
+	
+	Due to the reversing of the lexicographical ordering, the set of all possible tails is the same as the set of all $(k-1)$-choices whose encodings are between $0$ and $\binom{n-i}{k-1}-1$.
+	This means we may use recursion to compute the offset within the group.
+	
+	\begin{algorithm}[!ht] % H for exactly here
+	\caption{Recursive Encode}
+	\label{alg:E}
+	
+	\textbf{def $E(n,k,\{a_{v_1},a_{v_2},\ldots,a_{v_k}\})$}
+	\begin{algorithmic}[1]
+	\IF {$k = 0$}
+	\RETURN $0$
+	\ELSE
+	\STATE $groupstart \gets \binom{n-v_1}{k}$
+	\STATE $offset \gets E(n,k-1,\{a_{v_2},\ldots,a_{v_k}\})$
+	\RETURN $groupstart + offset$
+	\ENDIF
+	\end{algorithmic}
+	
+	%\vspace{0.5cm}
+	\end{algorithm}
+	\begin{algorithm}[!ht] % H for exactly here
+	\caption{Recursive Decode}
+	\label{alg:D}
+	
+	\textbf{def $D(n,k,e)$}
+	\begin{algorithmic}[1]
+	\IF {$k = 0$}
+	\RETURN $[]$
+	\ELSE
+	\STATE $v \gets \min \{ i : \binom{n-i}{k} \le e \}$
+	\STATE $offset \gets e - \binom{n-v}{k}$
+	\RETURN $a_v : D(n, k-1, offset)$
+	\ENDIF
+	\end{algorithmic}
+		
+	\end{algorithm}
+	
+	In practice, one simple yet effective optimization is to change the base case to $k=1$.
+	When $k=1$, the encoding $e$ simply corresponds to the choice $\{n-e\}$.
+	
+		
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\subsection{Modifications}
+	
+	In the reverse lexicographical encoding, a lower encoding corresponds to a greater lexeme.
+	This means that the lowest encoding always corresponds to the greatest lexeme: $\{ a_{n-k+1}, \ldots, a_n \}$.
+	
+	In general, if encoding $e$ corresponds to $\{ a_{v_1}, \ldots, a_{v_k} \}$ with respect to $n$ and $k$, then it corresponds to $\{ a_{v_1+j}, \ldots, a_{v_k+j} \}$ with respect to $(n+j)$ and $k$.
+	Thus, to encode all possible $k$-choices of the $n$ elements $\{ a_{j+1}, a_{j+2}, \ldots, a_{j+n} \}$, we may use the same encoding and decoding function by replacing $n$ with $(n+j)$.
+	This is particularly useful to get a zero-indexed implementation to work with one-indexed data.
+	
+	If encoding $e$ corresponds to $\{ a_{v_1}, \ldots, a_{v_k} \}$ with respect to $n$ and $k$, where each $v_i$ is at least $j+1$,
+		then $e$ corresponds to $\{ a_{v_1-j}, \ldots, a_{v_k-j} \}$ with respect to $(n-j)$ and $k$.
+	This subtractive encoding can be used to work with deltas.
+	That is to say, the choice $\{ a_{v_1}, a_{v_2}, \ldots, a_{v_k} \}$ is represented by $\{ (v_1-0), (v_2-v_1),\ldots,(v_n-v_{n-1}) \}$.
+	This is particularly useful when dealing with compositions of fixed size, such as the representation of dice rolls.
+	
+	\begin{figure}[!ht]
+		\begin{center}
+		\begin{tabular}{ccccc}
+			Encoding & & Choice & & Deltas \\
+			\hline
+			5 & $\equiv$ & $\{a_1, a_2\}$ & $\equiv$ & $\{1,1\}$ \\
+			4 & $\equiv$ & $\{a_1, a_3\}$ & $\equiv$ & $\{1,2\}$ \\
+			3 & $\equiv$ & $\{a_1, a_4\}$ & $\equiv$ & $\{1,3\}$ \\
+			2 & $\equiv$ & $\{a_2, a_3\}$ & $\equiv$ & $\{2,1\}$ \\
+			1 & $\equiv$ & $\{a_2, a_4\}$ & $\equiv$ & $\{2,2\}$ \\
+			0 & $\equiv$ & $\{a_3, a_4\}$ & $\equiv$ & $\{3,1\}$ \\
+		\end{tabular}
+		\caption{Delta Representation}
+		\label{DEx}
+		\end{center}
+	\end{figure}
+	
+	\begin{algorithm}[!ht]
+	\caption{Recursive Encode Deltas}
+	\label{alg:Ed}
+	
+	\textbf{def $E_\delta(n,k,\{\delta_1,\delta_2,\ldots,\delta_k\})$}
+	\begin{algorithmic}[1]
+	\IF {$k = 0$}
+	\RETURN $0$
+	\ELSE
+	\STATE $groupstart \gets \binom{n-\delta_1}{k}$
+	\STATE $offset \gets E_\delta(n-\delta_1,k-1,\{\delta_2,\ldots,\delta_k\})$
+	\RETURN $groupstart + offset$
+	\ENDIF
+	\end{algorithmic}	
+	
+	\end{algorithm}
+	
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\section{Observations}
+	
+	\begin{enumerate}
+		\item Any encoding or decoding algorithm takes $\Omega(k)$ time, since they accept as input or produce as output a list of $k$ values.
+		\label{obs:Ok}
+		
+		\item Any specific $k$-choice of $n$ elements can be represented by the $(n-k)$-choice of elements which were not selected - its dual.
+				  We may convert a choice to its dual in $O(n)$ time.
+		\label{obs:dual}
+		
+		\item We may assume that $k \le \frac{n}{2}$.
+					If not, then we may convert to/from the dual space in $O(n) \le O(2k) \le \Omega(k)$ time.
+		\label{obs:k2n}
+		
+		\item Computing binomial coefficients from scratch, according to \cite{binom}, takes $O(\min(k,n-k))$ time.
+					Since we may assume that $k \le \frac{n}{2}$, this is just $O(k)$.
+		\label{obs:Ob}
+		
+		\item $\log\binom{n}{k} = \Theta(k\log\frac{n}{k})$ when $k \le \frac{n}{2}$.
+		\label{obs:Tl}
+		
+		\item The function $i \mapsto \binom{n-i}{k}$ is monotone.
+					Hence finding the minimum $i$ such that $\binom{n-i}{k} \le e$, as in algorithm \ref{alg:D}, may be accomplished with a search algorithm.
+		\label{obs:search}
+		
+	\end{enumerate}
+		
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\section{Analysis}
+	
+	The slowest component of the reverse lexicographical encoding is the need to compute binomial coefficients.
+	If the binomial coefficients were pre-computed, then encoding can be done in $O(k)$ time and decoding can be done in $O(k\log\frac{n}{k})$ time.
+	Given that the input sizes for these two functions are $k$ and $\log\binom{n}{k}$, respectively, these are excellent runtimes.\footnote{
+		Technically, encode should alse be $O(\log\binom{n}{k})$, since it returns an encoding of that many bits.}
+	
+	An alternate approach exists that takes $O(n)$ time, including time spent computing binomial coefficients.
+	
+	
+%	Caching the binomial coefficients for $n$ and $k$ takes $O(k^2)$ space.
+%	This is much less than the $O(\binom{n}{k})$ space required to store a full encoding lookup table, but the spirit of the encoding is to be as space efficient as possible.
+%	When the binomial coefficients must be computed on the fly, the regular methods take $O(k^2)$ and $O(k^2\log\frac{n}{k})$ time, respectively.
+%	There is, however, an alternate method which takes $O(n)$ time.
+	
+	Full C++ source code and tests for each method can be found at \textbf{??}.
+	
+	
+	\subsection{Weighted Binary Search}
+	
+	The encoding algorithm, algorithm \ref{alg:E}, contains $k$ recursive calls.
+	Each call computes one binomial coefficient, and does $O(1)$ extra work.
+	Thus, if the binomial is computable in $O(1)$, encode is $O(k)$.
+	
+	The decode algorithm, algorithm \ref{alg:D}, is slightly different.
+	It needs to search for the smallest $i$ such that $\binom{n-i}{k} \le e$.
+	A regular binary search will take $O(\log n)$ steps; however, a slight modification will produce an amortized $O(\log\frac{n}{k})$.
+
+%	The trick relies on two observations.
+%	First, each element is greater than the last, since the choices are sorted.
+%	Secondly, the expected difference between two consecutive elements is about $\frac{n}{k}$.
+%	
+%	Searching between $1$ and $n$ is excessive.
+%	Since the decoding is in sorted order, every element is greater than the previous.
+%	This means that a lower bound for the $j$'th element, $v_j$, is $v_{j-1}$.  
+%	
+%	Also, performing a balanced search is not optimal.
+%	The lowest of $k$ elements chosen from $1..n$ is very likely to be less than $\frac{n}{2}$.
+%	If they were spaced evenly, the first element would be around $\frac{n}{2k}$.
+	
+	When binary searching for the $j$'th element, $v_j$, make the first partition at $l + \frac{n}{k}$, where $l$, a lower bound for $v_j$, is $v_{j-1}$.
+	If the check passes, implying $v_j \le l + \frac{n}{k}$, then $v_j \in \left( l, l + \frac{n}{k} \right]$ - a range of size $\frac{n}{k}$.
+	If the check fails, implying $v_j > l + \frac{n}{k}$, then $v_j$ and all future elements are greater than $l + \frac{n}{k}$  - update the lower bound to $l + \frac{n}{k}$ and repeat.
+	
+	\begin{algorithm}[!ht]
+	\caption{Recursive Binary Decode}
+	\label{alg:Drb}
+	
+	\textbf{def $D(n,k,e,l=0)$}
+	\begin{algorithmic}[1]
+	\IF {$k = 0$}
+		\RETURN $[]$
+	\ELSIF {$\binom{n-(l+\frac{n}{k})}{k} > e$}
+		\RETURN $D(n,k,e,l+\frac{n}{k})$
+	\ELSE
+		\STATE $v \gets \ldots$ // binary search for $\min\{i:\binom{n-i}{k}\le e\}$ in the range $\left( l, l+\frac{n}{k} \right]$
+		\STATE $offset \gets e - \binom{n-v}{k}$
+		\RETURN $v : D(n,k-1,offset,v)$
+	\ENDIF
+	\end{algorithmic}
+		
+	\end{algorithm}
+
+	In this method, when a partition finally passes, a regular binary search finds the correct value in at most $\log\frac{n}{k}$ further iterations.
+	Hence this method performs $O(k\log\frac{n}{k} + \{ \text{\# of fails} \})$ total steps.
+	But each failure increases the lower bound by $\frac{n}{k}$.\footnote{
+		Or $\frac{n}{k-i}$, which is greater than $\frac{n}{k}$.}
+	Since the upper bound is $n$, and the initial lower bound is $0$, there can be at most $k$ failures.
+	The total cost is therefore $O(k\log\frac{n}{k})$ to find all $k$ elements.
+	
+	
+	\subsection{Bottom-Up Linear Search}
+	
+	When the binomial coefficients must be computed on the fly, the regular methods slow down by a factor of $k$.
+	In these circumstances, the unlikely hero is linear search.
+	
+	When using linear search to find the smallest $i$ such that $\binom{n-i}{k} \le e$, the value $\binom{n-i}{k}$ may be computed incrementally in $O(1)$ time, under the identity
+	
+	\begin{eqnarray*}
+		\binom{n}{k} & = & \frac{n}{n-k+1}\cdot\binom{n-1}{k}
+	\end{eqnarray*}
+	
+	The coefficients may even be reused in the recursive calls.
+	When the $j$'th element is determined to be $i$, then the $j+1$'th element must be at least $i+1$.
+	Hence the first binomial in the $j+1$'th linear search may be computed from the last binomial in the $j$'th search, under the identity
+	
+	\begin{eqnarray*}
+		\binom{n}{k} & = & \frac{k+1}{n+1}\cdot\binom{n+1}{k+1}
+	\end{eqnarray*}
+	
+	The first coefficient of the first search, $\binom{n-1}{k}$, must be computed in $O(k)$ time.
+	
+	This pattern of reusing the coefficients has the property that, on each update, the numerator decreases by $1$.
+	Since $O(1)$ work is done for each coefficient, and there are $n$ valid numerators, decode by linear search takes $O(n+k) = O(n)$ time.
+	
+	A similar approach may be used to encode sequences.
+	
+	\begin{algorithm}[!ht]
+	\caption{Imperative Linear Decode}
+	\label{alg:Dil}
+	
+	\textbf{def $D(n,k,e)$}
+	\begin{algorithmic}[1]
+	\STATE $ret \gets []$
+	\STATE $j \gets 1$ // lower bound for the next element
+	\STATE $c \gets \binom{n-j}{k}$ // invariant: $c = \binom{n-j}{k-i+1}$
+	\FOR {$i \gets 1..k-1$}
+		\WHILE {$c > e$}
+			\STATE $c \gets \frac{c\cdot (n-j-k+i-1)}{n-j}$
+			\STATE $j \gets j + 1$
+		\ENDWHILE
+		\STATE $ret.push\_back(j)$
+		\STATE $e \gets e - c$
+		\STATE $c \gets \frac{c \cdot (k-i+1)}{n-j}$
+		\STATE $j \gets j + 1$
+	\ENDFOR
+	\STATE $ret.push\_back(n-e)$ // $k=1$ optimization
+	\RETURN $ret$
+	\end{algorithmic}	
+	
+	\end{algorithm}	
+	
+
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\section{Conclusion}
+	
+	The reverse lexicographical encoding may be used to compactly and efficiently encode and decode specific combinations.
+	
+	With cached coefficients ($O(k^2)$ space overhead) the encoding runs in $O(k)$ time and decoding runs in $O(k\log\frac{n}{k})$ time.
+	In the absence of cached coefficients both encoding and decoding can be run in $O(n)$ time.
+	
+	The algorithms are short, easy to implement, and easy to test. 
+	They may easily be modified to deal with encodings of different indices, or deltas.	
+	
+	Code may be found at \textbf{??}.
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%% Bibliography
+	
+	\begin{thebibliography}{9}
+		\bibitem{binom}
+			Yannis Manolopoulos,
+		  \emph{Binomial Coefficient Computation: Recursion or Iteration?}
+		  SIGCSE Bulletin,
+		  Vol 34, No. 4, 2002 December.
+	
+		\bibitem{CLRS}
+			Cormen, Thomas H., et al.
+			\emph{Introduction to Algorithms}.
+			3rd ed.
+			Cambridge: The MIT Press, 2009.
+	\end{thebibliography}
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	\vspace{1cm}\begin{center}\includegraphics[scale=0.25]{C:/Users/Nicholas/Pictures/Dragons/raptor}\par\end{center}
+	
+	
+%	Interesting math: The expected number of iterations to find the first $i$ is $\frac{n+1}{k+1}$.	
+	
+%	iterative encode
+%	
+%	\begin{algorithm}[h!]
+%	\caption{Iterative Encode}
+%	\label{AE}
+%	
+%	\textbf{def $E(n,k,\{a_{v_1},a_{v_2},\ldots,a_{v_k}\})$:}
+%	\begin{algorithmic}[1]
+%	\STATE $e \gets 0$
+%	\FOR {$i \gets 1..k$}
+%		\STATE $e \gets e + \binom{n-v_i}{k-i+1}$
+%	\ENDFOR
+%	\RETURN $e$
+%	\end{algorithmic}
+%	
+%	\end{algorithm}			
+	
+%	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%	\section{Decoding}
+%	
+%	In the lexicographical encoding, $\binom{n-i}{k-1}$ choices contain the $i$'th element as their first selection.
+%	Since the choices are sorted in reverse order, this yields a simple algorithm to determine the first selection in an encoding $e$.
+%	
+%	\begin{algorithm}[h!]
+%	\caption{Decode First Selection}
+%	\label{ADFS}
+%	
+%	\textbf{def $decode\_first\_selection(e,n,k)$:}
+%	\begin{algorithmic}[1]
+%	\STATE $e' \gets e$
+%	\STATE $i \gets n-k+1$
+%	\WHILE{$\binom{n-i}{k-1} \le e'$}
+%		\STATE $e' \gets e' - \binom{n-i}{k-1}$
+%		\STATE $i \gets i - 1$
+%	\ENDWHILE
+%	\RETURN $i$
+%	\end{algorithmic}
+%	
+%	\end{algorithm}
+%	
+%	For example, the choice $\{a_1,a_3\}$ from $\{a_1,a_2,a_3,a_4\}$ corresponds to the encoding $4$ (see figure \ref{Ex}).
+%	Hence, on arguments $e=4$, $n=4$ and $k=2$, decode\_first\_selection should return $1$, as in ``$a_1$ is the first selection in the choice represented by $4$.''
+%	
+%	The invariant in decode\_first\_selection is that $e'$ is the relative encoding of all choices whose first element is at most $i$.
+%	That is to say, $e' + \{\text{the lowest encoding that starts with $i$}\} = e$.
+%	Hence, upon the algorithm's return, $e'$ is anywhere between $0$ and $\binom{n-i}{k-1}-1$.
+%	
+%	Combining the invariant with the fact that there are are exactly $\binom{n-i}{k-1}$ choices that start with the $i$'th element, we may recursively decode the rest of the list using $e'$, $n-i$ and $k-1$.
+%	
+%	\begin{algorithm}[h!]
+%	\caption{Decode Delta}
+%	\label{ADD}
+%	
+%	\textbf{def $decode\_delta(e,n,k)$:}
+%	\begin{algorithmic}[1]
+%	\IF {$k = 0$}
+%	\RETURN $\left[ \right]$
+%	\ELSE
+%	\STATE $e' \gets e$
+%	\STATE $i \gets n-k+1$
+%	\WHILE{$\binom{n-i}{k-1} \le e'$}
+%		\STATE $e' \gets e' - \binom{n-i}{k-1}$
+%		\STATE $i \gets i - 1$
+%	\ENDWHILE
+%	\RETURN $i : decode\_delta(e',n-i,k-1)$
+%	\ENDIF
+%	\end{algorithmic}
+%	
+%	\end{algorithm}
+%	
+%	Algorithm \ref{ADD} has one small caveat: it produces the index differences, not the indices themselves.
+%	That is to say, decode\_delta(5,4,2) would produce the list $\left[ 1,2 \right]$ instead of the expected list $\left[ 1,3 \right]$ (see figure \ref{Ex}).
+%	This can be fixed in one linear pass.
+%	
+%	\begin{algorithm}[h!]
+%	\caption{Decode}
+%	\label{AD}
+%	
+%	\textbf{def $D(e,n,k)$:}
+%	\begin{algorithmic}[1]
+%	\STATE $deltas \gets decode\_delta(e,n,k)$
+%	\STATE $sum \gets 0$
+%	\STATE $indices \gets \left[ \right]$
+%	\FOR {$delta \in deltas$}
+%	\STATE $sum \gets sum + delta$
+%	\STATE $indices . append(sum)$
+%	\ENDFOR
+%	\RETURN $indices$
+%	\end{algorithmic}
+%	
+%	\end{algorithm}
+
+
+%	\subsubsection{Top-Down Linear Search}
+%	
+%	Performing a linear search for $i$, starting from $i = n-k$, has one very large advantage:
+%	the binomial coefficients may be incrementally computed in $O(1)$ time.
+%	
+%	For the first test, $f(i)=f(n-k)=\binom{n-(n-k)}{k}=1$.
+%	Then, under the identity
+%	
+%	\begin{eqnarray}
+%		\binom{n}{k} & = & \frac{n}{n-k+1}\cdot\binom{n-1}{k}
+%		\label{I2}
+%	\end{eqnarray}
+%	we have $f(i+1)= \frac{n-i+1}{n-i-k}\cdot f(i)$.
+%	
+%	\subsubsection{Bottom-Up Linear Search}
+%	
+%	Like top-down linear search, bottom-up search may incrementally compute the binomial coefficient in $O(1)$ time.
+%	However, unlike top-down search, computing the first coefficient takes $O(\min(k,n-k))$ time.
+%	
+%	Bottom-up search is better than top-down search in the expected number of iterations.
+%	
+%	\subsubsection{Binary Search}
+%	
+%	Binary search only takes $O(\log(n-k))$ iterations, but each iteration requires the computation of a binomial coefficient in $O(\min(k,n-k))$ time.
+%	
+%	\subsubsection{Lookup Table}
+%	
+%	The binomial coefficients could be stored in a lookup table.
+%	This would make binary searching much more efficient.
+%	
+%	If space is not of concern, the a coefficient lookup table is actually not optimal - just have a lookup table for the whole encoding.
+%	That said, a coefficient lookup table only needs $O(n^2)$ space, whereas a table for the entire encoding would need $\binom{n}{k}$ space.
+
+
+%	%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%	\subsection{Computing Binomial Coefficients}
+%	
+%	Algorithm \ref{ADD} uses a linear search to find the correct index.
+%	The search is performed along a diagonal of Pascal's triangle, starting from $\binom{n-(n-k+1)}{k-1}=\binom{k-1}{k-1}$, and accumulating values as it heads down and left.
+%	However, the partial sums of that diagonal can be found in the next diagonal, according to equation \ref{CE}. PICTURE REQUIRED
+%	
+%	Therefore we could ``improve'' algorithm \ref{ADD} by performing a binary search.
+%	Except this improvement would not be faster - it precludes a more important optimization: the computation of the binomial coefficients.
+%	
+%	As presented, algorithm \ref{ADD} computes a binomial coefficient on each loop.
+%	Computing the binomial coefficient on the $j$'th loop requires $j$ multiplications and divisions.
+%	However, we may reuse the previous loop's computation, under the identity
+%	
+%	\begin{eqnarray}
+%		\binom{n}{k} & = & \frac{n}{n-k+1}\cdot\binom{n-1}{k}
+%		\label{I2}
+%	\end{eqnarray}
+%	
+%	\begin{algorithm}[h!]
+%	\caption{Decode Delta (Improved)}
+%	\label{ADDI}
+%	
+%	\textbf{def $decode\_delta(e,n,k)$:}
+%	\begin{algorithmic}[1]
+%	\IF {$k = 0$}
+%	\RETURN $\left[ \right]$
+%	\ELSE
+%	\STATE $e' \gets e$
+%	\STATE $i \gets n-k+1$
+%	\STATE $c \gets 1$
+%	\WHILE{$c \le e'$}
+%		\STATE $e' \gets e' - c$
+%		\STATE $i \gets i - 1$
+%		\STATE $c \gets \frac{n-i}{n-i-k+1}\cdot c$
+%	\ENDWHILE
+%	\RETURN $i : decode\_delta(e',n-i,k-1)$
+%	\ENDIF
+%	\end{algorithmic}
+%	
+%	\end{algorithm}
+
+
+%	\vspace{0.2cm}
+%	
+%	Linear searches may compute $f(i)$ incrementally in $O(1)$ time, under the identity
+%	
+%	\begin{eqnarray}
+%		\binom{n}{k} & = & \frac{n}{n-k+1}\cdot\binom{n-1}{k}
+%		\label{I2}
+%	\end{eqnarray}
+%	
+%	Linear searches, therefore, can be done in $O(n-k)$ time.
+%	
+%	Since choices with lower $i$ are more common, a search from $i=1$ up to $n-k$ would need fewer (expected) iterations than a search from $n-k$ down to $1$.
+%	However, a bottom-up search needs to compute its first coefficient, $\binom{n-1}{k}$, in $O(\min(k,n-k))$ time; a top-down search's first coefficient, $\binom{n-(n-k)}{k}$, is just $1$.
+%	
+%	\vspace{0.2cm}
+%	
+%	Binary searches must compute each $f(i)$ in $O(\min(k,n-k))$ time, but only require $\log(n-k)$ iterations, for a total runtime of $O(\min(k,n-k)\cdot\log(n-k))$.
+%	The benefits are especially apparent when $n \gg k$.
+%	
+%	For known $n$ and $k$, lookup tables may be used to speed up a binary search.
+%	The table would need to contain $O(nk)$ elements.
+
+%	\begin{lemma}
+%		\label{kflip}
+%		We may assume $k \le \frac{n}{2}$.
+%	\end{lemma}
+%	
+%	\begin{proof}
+%		A specific $k$-choice of $n$ elements can be represented by the $(n-k)$-choice of elements which were not selected, its dual.
+%		We may convert a choice to its dual in $O(n)$ time.
+%		
+%		Both encode and decode take $\Omega(k)$ time, since they accept as input or produce as output a list of $k$ values.
+%		
+%		Therefore, when $k > \frac{n}{2}$, we may convert to/from the dual in $O(2k)$ time, which does not increase the $\Omega(k)$ runtime.
+%		The dual will have $k \le \frac{n}{2}$.
+%	\end{proof}
+
+%	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%	\subsection{Decode Search}
+%	
+%	The decoding algorithm needs to find the minimum $i$ such that $\binom{n-i}{k} < e$.
+%	Since $f(i) = \binom{n-i}{k}$ is a decreasing function, the correct $i$ may be found using a search algorithm.
+%	
+%	Binary searches require $O(\log(n-k))$ iterations.
+%	On each iteration, $f(i)$ must be computed, which takes $O(\min(k,n-k))$ steps\cite{binom}.
+%	Hence a binary search takes $O(\min(k,n-k)\cdot\log(n-k))$ time.
+%	
+%	Linear searches require $O(n-k)$ iterations.
+%	However, linear searches may compute $f(i)$ incrementally in $O(1)$ time, under the identity
+%	
+%	\begin{eqnarray}
+%		\binom{n}{k} & = & \frac{n}{n-k+1}\cdot\binom{n-1}{k}
+%		\label{I2}
+%	\end{eqnarray}
+%	
+%	This leaves linear searches at $O(n-k)$ time, which may or may not be better than binary search.
+%
+%	\vspace{0.2cm}
+%	
+%	What is the expected number of iterations of a bottom-up linear search?
+%	We will assume that the encodings are uniformly distributed.
+%	
+%	There are $\binom{n-i}{k-1}$ encodings that start with the $i$'th element.
+%	Since the linear search is bottom-up, a value of $i$ is determined to be correct on the $i$'th iteration.
+%	Hence the expected number of iterations is
+%	
+%	\begin{eqnarray*}
+%		E(I) & = & \frac{\sum i\cdot\{\text{\# of encodings that start with }i\}}{\text{\# of encodings}} \\
+%		& = & \frac{1}{\binom{n}{k}} \sum_{i=1}^{n-k+1}{i\cdot\binom{n-i}{k-1}} \\
+%		& = & \frac{1}{\binom{n}{k}} \sum_{r=1}^{n-k+1}{\sum_{i=r}^{n-k+1}{\binom{n-i}{k-1}}} \\
+%		%& = & \frac{1}{\binom{n}{k}} \sum_{r=1}^{n-k+1}{\sum_{i=1}^{n-k+1-(r-1)}{\binom{n-(r-1)-i}{k-1}}} \\
+%		& = & \frac{1}{\binom{n}{k}} \sum_{r=1}^{n-k+1}{\binom{n-r+1}{k}} \\
+%		& = & \frac{1}{\binom{n}{k}} \binom{n+1}{k+1} \\
+%		& = & \frac{n+1}{k+1} \\
+%		\label{eq:qwsxsdgf}
+%	\end{eqnarray*}
+%	
+%	In a top-down search, where the value of $i$ is determined to be correct on the $(n-k+2)-i$'th iteration, the expected number of iterations is $E(I) = (n-k+2)-\frac{n+1}{k+1}$.
+%	
+%	At a glance, it seems that bottom-up search is better than top-down search.
+%	However, there is one other consideration.
+%	In top-down search, where $i$ is initially $n-k+1$, the first $f(i)$ is $\binom{k-1}{k-1}$, which is simply $1$.
+%	In bottom-up search, where $i$ is initially $1$, the first $f(i)$ is $\binom{n-1}{k-1}$, which must be computed in $O(\min(k,n-k))$ time.
+%	This places the two approaches on comparable footing.
+
+
+\end{document}
